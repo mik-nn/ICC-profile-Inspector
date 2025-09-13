@@ -1,0 +1,201 @@
+{
+  "ICCHeader": {
+  "name": "ICCHeader",
+  "fields": [
+    { "name": "profileSize", "type": "u32" },
+    { "name": "preferredCMMType", "type": "string", "length": 4 },
+    { "name": "profileVersion", "type": "u32" },
+    { "name": "profileClass", "type": "string", "length": 4 },
+    { "name": "colorSpace", "type": "string", "length": 4 },
+    { "name": "PCS", "type": "string", "length": 4 },
+    { "name": "creationDate_year", "type": "u16" },
+    { "name": "creationDate_month", "type": "u16" },
+    { "name": "creationDate_day", "type": "u16" },
+    { "name": "creationDate_hours", "type": "u16" },
+    { "name": "creationDate_minutes", "type": "u16" },
+    { "name": "creationDate_seconds", "type": "u16" },
+    { "name": "acspSignature", "type": "string", "length": 4 },
+    { "name": "platform", "type": "string", "length": 4 },
+    { "name": "flags", "type": "u32",
+      "bitflags": {
+        "0": "Embedded profile",
+        "1": "Can be used independently of embedded color data"
+      }
+    },
+    { "name": "deviceManufacturer", "type": "string", "length": 4 },
+    { "name": "deviceModel", "type": "string", "length": 4 },
+    { "name": "deviceAttributes1", "type": "u32" },
+    { "name": "deviceAttributes2", "type": "u32" },
+    { "name": "renderingIntent", "type": "u32",
+      "enum": {
+        "0": "Perceptual",
+        "1": "Relative Colorimetric",
+        "2": "Saturation",
+        "3": "Absolute Colorimetric"
+      }
+    },
+    { "name": "illuminantX", "type": "s15Fixed16" },
+    { "name": "illuminantY", "type": "s15Fixed16" },
+    { "name": "illuminantZ", "type": "s15Fixed16" },
+    { "name": "profileCreator", "type": "string", "length": 4 },
+    { "name": "profileID", "type": "u8", "repeat": 16 },
+    { "name": "reserved", "type": "u8", "repeat": 28 }
+  ]
+},
+
+  "text": {
+    "name": "textType",
+    "fields": [
+      { "name": "typeSignature", "type": "string", "length": 4 },
+      { "name": "reserved", "type": "u32" },
+      { "name": "text", "type": "string", "lengthField": "remaining" }
+    ]
+  },
+
+  "desc": {
+    "name": "descType",
+    "fields": [
+      { "name": "typeSignature", "type": "string", "length": 4 },
+      { "name": "reserved", "type": "u32" },
+      { "name": "asciiLength", "type": "u32" },
+      { "name": "asciiString", "type": "string", "lengthField": "asciiLength" }
+    ]
+  },
+
+  "mluc": {
+    "name": "mlucType",
+    "fields": [
+      { "name": "typeSignature", "type": "string", "length": 4 },
+      { "name": "reserved", "type": "u32" },
+      { "name": "count", "type": "u32" },
+      { "name": "recordSize", "type": "u32" }
+    ]
+  },
+
+  "XYZ ": {
+    "name": "XYZType",
+    "fields": [
+      { "name": "typeSignature", "type": "string", "length": 4 },
+      { "name": "reserved", "type": "u32" },
+      { "name": "X", "type": "s15Fixed16" },
+      { "name": "Y", "type": "s15Fixed16" },
+      { "name": "Z", "type": "s15Fixed16" }
+    ]
+  },
+
+  "curv": {
+    "name": "curveType",
+    "fields": [
+      { "name": "typeSignature", "type": "string", "length": 4 },
+      { "name": "reserved", "type": "u32" },
+      { "name": "count", "type": "u32" },
+      { "name": "values", "type": "array", "count": "count", "element": { "type": "u16" } }
+    ]
+  },
+
+  "CLUTType": {
+    "name": "CLUTType",
+    "fields": [
+      { "name": "gridPoints", "type": "u8", "repeat": 16 },
+      { "name": "precision", "type": "u8" },
+      { "name": "reserved0", "type": "u8", "repeat": 3 },
+      { "name": "values", "type": "array", "countField": "calculatedCLUTCount", "element": { "type": "u16" } }
+    ]
+  },
+
+  "matrix3x3Type": {
+    "name": "matrix3x3Type",
+    "fields": [
+      { "name": "m00", "type": "s15Fixed16" },
+      { "name": "m01", "type": "s15Fixed16" },
+      { "name": "m02", "type": "s15Fixed16" },
+      { "name": "m10", "type": "s15Fixed16" },
+      { "name": "m11", "type": "s15Fixed16" },
+      { "name": "m12", "type": "s15Fixed16" },
+      { "name": "m20", "type": "s15Fixed16" },
+      { "name": "m21", "type": "s15Fixed16" },
+      { "name": "m22", "type": "s15Fixed16" },
+      { "name": "e0", "type": "s15Fixed16" },
+      { "name": "e1", "type": "s15Fixed16" },
+      { "name": "e2", "type": "s15Fixed16" }
+    ]
+  },
+
+  "mAB ": {
+    "name": "mABType",
+    "fields": [
+      { "name": "typeSignature", "type": "string", "length": 4 },
+      { "name": "reserved", "type": "u32" },
+      { "name": "inputChannels", "type": "u8" },
+      { "name": "outputChannels", "type": "u8" },
+      { "name": "reserved2", "type": "u16" },
+      { "name": "offsetBcurves", "type": "u32" },
+      { "name": "offsetMatrix", "type": "u32" },
+      { "name": "offsetMcurves", "type": "u32" },
+      { "name": "offsetCLUT", "type": "u32" },
+      { "name": "offsetAcurves", "type": "u32" },
+
+      { "name": "Bcurves", "type": "pointer", "offsetField": "offsetBcurves", "base": "tagStart", "schema": { "$ref": "curv" } },
+      { "name": "Matrix", "type": "pointer", "offsetField": "offsetMatrix", "base": "tagStart", "schema": { "$ref": "matrix3x3Type" } },
+      { "name": "Mcurves", "type": "pointer", "offsetField": "offsetMcurves", "base": "tagStart", "schema": { "$ref": "curv" } },
+      { "name": "CLUT", "type": "pointer", "offsetField": "offsetCLUT", "base": "tagStart", "schema": { "$ref": "CLUTType" } },
+      { "name": "Acurves", "type": "pointer", "offsetField": "offsetAcurves", "base": "tagStart", "schema": { "$ref": "curv" } }
+    ]
+  },
+
+  "mBA ": { "$ref": "mAB " },
+  "A2B0": { "$ref": "mAB " },
+  "A2B1": { "$ref": "mAB " },
+  "A2B2": { "$ref": "mAB " },
+  "B2A0": { "$ref": "mBA " },
+  "B2A1": { "$ref": "mBA " },
+  "B2A2": { "$ref": "mBA " },
+
+  "mft1": {
+    "name": "lut8Type",
+    "fields": [
+      { "name": "typeSignature", "type": "string", "length": 4 },
+      { "name": "reserved", "type": "u32" },
+      { "name": "inputChannels", "type": "u8" },
+      { "name": "outputChannels", "type": "u8" },
+      { "name": "clutGridPoints", "type": "u8" },
+      { "name": "reserved2", "type": "u8" }
+    ]
+  },
+
+  "mft2": {
+    "name": "lut16Type",
+    "fields": [
+      { "name": "typeSignature", "type": "string", "length": 4 },
+      { "name": "reserved", "type": "u32" },
+      { "name": "inputChannels", "type": "u8" },
+      { "name": "outputChannels", "type": "u8" },
+      { "name": "clutGridPoints", "type": "u8" },
+      { "name": "reserved2", "type": "u8" }
+    ]
+  },
+
+  "meas": {
+    "name": "measurementType",
+    "fields": [
+      { "name": "typeSignature", "type": "string", "length": 4 },
+      { "name": "reserved", "type": "u32" },
+      { "name": "observer", "type": "u32" },
+      { "name": "backingX", "type": "s15Fixed16" },
+      { "name": "backingY", "type": "s15Fixed16" },
+      { "name": "backingZ", "type": "s15Fixed16" },
+      { "name": "geometry", "type": "u32" },
+      { "name": "flare", "type": "s15Fixed16" },
+      { "name": "illuminantType", "type": "u32" }
+    ]
+  },
+
+  "tech": {
+    "name": "technologyType",
+    "fields": [
+      { "name": "typeSignature", "type": "string", "length": 4 },
+      { "name": "reserved", "type": "u32" },
+      { "name": "technology", "type": "string", "length": 4 }
+    ]
+  }
+}
