@@ -36,19 +36,7 @@ function renderTree(obj, label, isRoot=false) {
   return details;
 }
 
-function renderMatrix3x3(obj) {
-  if (!('m00' in obj)) return '';
-  let html = '<table style="border-collapse:collapse;margin:5px 0;">';
-  for (let r = 0; r < 3; r++) {
-    html += '<tr>';
-    for (let c = 0; c < 3; c++) {
-      html += `<td style="border:1px solid #ccc;padding:2px 6px;">${obj[`m${r}${c}`]}</td>`;
-    }
-    html += '</tr>';
-  }
-  html += '</table>';
-  return html;
-}
+
 
 function renderXMLTree(node) {
   if (!node) return '';
@@ -77,5 +65,5 @@ function renderXMLTree(node) {
 
 // Export for main.js
 window.renderTree = renderTree;
-window.renderMatrix3x3 = renderMatrix3x3;
+
 window.renderXMLTree = renderXMLTree;
