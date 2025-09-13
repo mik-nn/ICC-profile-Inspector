@@ -82,34 +82,76 @@ document.getElementById('iccInput').addEventListener('change', e => {
           let parsed = api_parseBySchema(view, schema, tag.offset, ctx);
 
 
-          // Special handling for ZXML and CxF
-          if (schema.name === "zxmlType" || tag.tagSignature === "CxF ") {
-            // Try decompress and parse XML
-            let bytes = parsed.compressedData || parsed.bytes;
-            if (bytes) {
-              try {
-                const inflated = pako.inflate(bytes, { to: 'string' });
-                // Try parse XML and render as tree
-                let xmlTree = null;
+          // Special handling for ZXML and CxF: detect by type signature or tag signature
+          try {
+            const typeSig = api_readAscii(view, tag.offset, 4);
+            if (typeSig === 'ZXML' || tag.tagSignature === 'CxF ') {
+              // prefer parsed.compressedData or parsed.bytes if available
+              let bytes = (parsed && parsed.compressedData) ? parsed.compressedData : (parsed && parsed.bytes) ? parsed.bytes : null;
+              // if not parsed, take raw payload after the 8-byte header (typeSignature + reserved)
+              if (!bytes) {
                 try {
-                  const parser = new DOMParser();
-                  const xmlDoc = parser.parseFromString(inflated, "application/xml");
-                  xmlTree = renderXMLTree(xmlDoc.documentElement);
+                  const start = tag.offset + 8;
+                  const len = Math.max(0, tag.size - 8);
+                  bytes = new Uint8Array(buffer, start, len);
                 } catch (e) {
-                  xmlTree = `<pre>${inflated}</pre>`;
+                  bytes = null;
                 }
-                parsed.decompressedXML = xmlTree;
-              } catch (e) {
-                parsed.decompressedXML = "Ошибка распаковки: " + e;
+              }
+              if (bytes) {
+                try {
+                  // For ZXML content: first 12 bytes are: ZXML + 8 zeros + 2-byte version
+                  const isZXML = bytes.length >= 4 && 
+                    bytes[0] === 0x5A && // 'Z'
+                    bytes[1] === 0x58 && // 'X'
+                    bytes[2] === 0x4D && // 'M'
+                    bytes[3] === 0x4C;   // 'L'
+                  
+                  // Skip ZXML 12-byte header if present
+                  if (isZXML && bytes.length >= 12) {
+                    bytes = bytes.slice(12);
+                  }
+
+                  let inflated;
+                  try {
+                    // Inflate the zlib-compressed data (which starts with 0x78 0x9C)
+                    inflated = pako.inflate(bytes, { to: 'string' });
+                  } catch (e) {
+                    parsed.decompressedXML = `Ошибка распаковки: ${e}. First bytes: ${Array.from(bytes.slice(0,16)).map(b => b.toString(16).padStart(2,'0')).join(' ')}`;
+                    return;
+                  }
+                  // Try parse XML and render as tree
+                  let xmlTree = null;
+                  try {
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(inflated, 'application/xml');
+                    xmlTree = renderXMLTree(xmlDoc.documentElement);
+                  } catch (e) {
+                    xmlTree = `<pre>${inflated}</pre>`;
+                  }
+                  parsed.decompressedXML = xmlTree;
+                } catch (e) {
+                  parsed.decompressedXML = 'Ошибка распаковки: ' + e;
+                }
               }
             }
+          } catch (e) {
+            // ignore read errors
           }
             // Special handling for matrix3x3Type (e.g., chad)
             if (schema && schema.name === 'matrix3x3Type') {
               try {
-                if (window.renderMatrix3x3) parsed.__html = window.renderMatrix3x3(parsed);
+                if (window.renderMatrix3x3) parsed.__table = window.renderMatrix3x3(parsed);
               } catch (e) {
                 // ignore render errors
+              }
+            }
+            // Fallback: if schema wasn't detected but tag is literally 'chad', render matrix
+            if ((!schema || schema.name !== 'matrix3x3Type') && tag.tagSignature === 'chad') {
+              try {
+                if (window.renderMatrix3x3) parsed.__table = window.renderMatrix3x3(parsed);
+              } catch (e) {
+                // ignore
               }
             }
 
@@ -132,7 +174,42 @@ document.getElementById('iccInput').addEventListener('change', e => {
           parsedTags[tagTitle] = { error: String(err), rawHex: api_formatHexDump(new Uint8Array(buffer, tag.offset, tag.size), tag.offset) };
         }
       } else {
-  parsedTags[tagTitle] = { rawHex: api_formatHexDump(new Uint8Array(buffer, tag.offset, tag.size), tag.offset) };
+        // No schema: try to special-case CxF which often contains ZXML data
+        if (tag.tagSignature === 'CxF ') {
+          try {
+            // Read first few bytes to check ZXML signature
+            const bytes = new Uint8Array(buffer, tag.offset, tag.size);
+            // Look for ZXML signature
+            if (bytes.length >= 12 && 
+                bytes[0] === 0x5A && bytes[1] === 0x58 && 
+                bytes[2] === 0x4D && bytes[3] === 0x4C) {
+              // Skip ZXML header (12 bytes) and inflate
+              const zlibData = new Uint8Array(buffer, tag.offset + 12, tag.size - 12);
+              try {
+                const inflated = pako.inflate(zlibData, { to: 'string' });
+                // Parse inflated XML
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(inflated, 'application/xml');
+                const xmlTree = renderXMLTree(xmlDoc.documentElement);
+                parsedTags[tagTitle] = { decompressedXML: xmlTree };
+              } catch (e) {
+                // Show inflation error with debug info
+                parsedTags[tagTitle] = { 
+                  error: `Ошибка распаковки ZXML: ${e}`,
+                  debug: `First bytes after ZXML header: ${Array.from(zlibData.slice(0,16)).map(b => b.toString(16).padStart(2,'0')).join(' ')}`
+                };
+              }
+            } else {
+              // Not ZXML, show raw hex
+              parsedTags[tagTitle] = { rawHex: api_formatHexDump(bytes, tag.offset) };
+            }
+          } catch (e) {
+            // fallback to raw hex dump
+            parsedTags[tagTitle] = { rawHex: api_formatHexDump(new Uint8Array(buffer, tag.offset, tag.size), tag.offset) };
+          }
+        } else {
+          parsedTags[tagTitle] = { rawHex: api_formatHexDump(new Uint8Array(buffer, tag.offset, tag.size), tag.offset) };
+        }
       }
     }
 

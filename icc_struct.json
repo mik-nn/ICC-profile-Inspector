@@ -190,6 +190,16 @@
     ]
   },
 
+  "ZXML": {
+    "name": "zxmlType",
+    "fields": [
+      { "name": "typeSignature", "type": "string", "length": 4 },
+      { "name": "reserved", "type": "u32" },
+      { "name": "reserved2", "type": "u32" },
+      { "name": "version", "type": "u16" },
+      { "name": "compressedData", "type": "bytes", "lengthField": "remaining" }
+    ]
+  },
   "tech": {
     "name": "technologyType",
     "fields": [

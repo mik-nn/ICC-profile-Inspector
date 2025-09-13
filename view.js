@@ -4,11 +4,9 @@ function renderTree(obj, label, isRoot=false) {
   if (obj === null || typeof obj !== 'object') {
     return document.createTextNode(String(obj));
   }
-  // Special case: render HTML string for matrix3x3Type
-  if (obj && typeof obj === 'object' && obj.__html) {
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = obj.__html;
-    return wrapper;
+  // If this is a DOM node (XML tree produced by renderXMLTree), return a cloned node
+  if (obj && typeof obj === 'object' && typeof obj.nodeType === 'number') {
+    return obj.cloneNode(true);
   }
   const details = document.createElement('details');
   details.open = isRoot;
@@ -20,11 +18,19 @@ function renderTree(obj, label, isRoot=false) {
   const ul = document.createElement('ul');
   for (const key in obj) {
     const li = document.createElement('li');
+    // Special child: render matrix HTML stored in __table as a child element inside the tag
+    if (key === '__table') {
+      // Render without showing the internal property name
+      li.innerHTML = `<strong>matrix:</strong> ${obj[key]}`;
+      ul.appendChild(li);
+      continue;
+    }
+
     if (typeof obj[key] === 'object' && obj[key] !== null) {
       li.appendChild(renderTree(obj[key], key, false));
     } else {
-      // Если значение уже содержит HTML (<pre> для текста/XML)
-      if (typeof obj[key] === 'string' && obj[key].startsWith('<pre>')) {
+      // If value is an HTML fragment (<pre> for text/XML or <table> for matrix), inject it
+      if (typeof obj[key] === 'string' && (obj[key].startsWith('<pre>') || obj[key].trim().startsWith('<table'))) {
         li.innerHTML = `<strong>${key}:</strong> ${obj[key]}`;
       } else {
         li.innerHTML = `<strong>${key}:</strong> ${obj[key]}`;
