@@ -104,6 +104,14 @@ document.getElementById('iccInput').addEventListener('change', e => {
               }
             }
           }
+            // Special handling for matrix3x3Type (e.g., chad)
+            if (schema && schema.name === 'matrix3x3Type') {
+              try {
+                if (window.renderMatrix3x3) parsed.__html = window.renderMatrix3x3(parsed);
+              } catch (e) {
+                // ignore render errors
+              }
+            }
 
 
           // Special handling for text-like tags (textType, descType, cprt, DevD)
