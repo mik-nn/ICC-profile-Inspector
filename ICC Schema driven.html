@@ -72,33 +72,72 @@ document.getElementById('iccInput').addEventListener('change', e => {
     const parsedTags = {};
     for (const tag of tags) {
       const schema = pickSchema(tag.tagSignature, view, tag.offset);
+      let tagTitle = `${tag.tagSignature} [offset: ${tag.offset}, length: ${tag.size}]`;
       if (schema) {
         try {
           const ctx = { tagSize: tag.size };
-          const parsed = parseBySchema(view, schema, tag.offset, ctx);
+          let parsed = parseBySchema(view, schema, tag.offset, ctx);
 
-          // Обработка ZXML
-          if (schema.name === "zxmlType") {
-            const bytes = parsed.compressedData;
-            try {
-              const inflated = pako.inflate(bytes, { to: 'string' });
-              parsed.decompressedXML = `<pre>${inflated}</pre>`;
-            } catch (e) {
-              parsed.decompressedXML = "Ошибка распаковки: " + e;
+
+          // Special handling for ZXML and CxF
+          if (schema.name === "zxmlType" || tag.tagSignature === "CxF ") {
+            // Try decompress and parse XML
+            let bytes = parsed.compressedData || parsed.bytes;
+            if (bytes) {
+              try {
+                const inflated = pako.inflate(bytes, { to: 'string' });
+                // Try parse XML and render as tree
+                let xmlTree = null;
+                try {
+                  const parser = new DOMParser();
+                  const xmlDoc = parser.parseFromString(inflated, "application/xml");
+                  xmlTree = renderXMLTree(xmlDoc.documentElement);
+                } catch (e) {
+                  xmlTree = `<pre>${inflated}</pre>`;
+                }
+                parsed.decompressedXML = xmlTree;
+              } catch (e) {
+                parsed.decompressedXML = "Ошибка распаковки: " + e;
+              }
             }
           }
+// Render XML DOM as tree
+function renderXMLTree(node) {
+  if (!node) return '';
+  if (node.nodeType === 3) { // text
+    const text = node.nodeValue.trim();
+    if (!text) return '';
+    return document.createTextNode(text);
+  }
+  const details = document.createElement('details');
+  details.open = false;
+  const summary = document.createElement('summary');
+  summary.textContent = `<${node.nodeName}>` + (node.attributes && node.attributes.length ?
+    Array.from(node.attributes).map(a => ` ${a.name}="${a.value}"`).join('') : '');
+  details.appendChild(summary);
+  const ul = document.createElement('ul');
+  for (let i = 0; i < node.childNodes.length; i++) {
+    const child = node.childNodes[i];
+    const li = document.createElement('li');
+    const rendered = renderXMLTree(child);
+    if (rendered) li.appendChild(rendered);
+    ul.appendChild(li);
+  }
+  details.appendChild(ul);
+  return details;
+}
 
-          // Обработка textType
+          // Special handling for textType
           if (schema.name === "textType") {
-            parsedTags[tag.tagSignature] = { text: `<pre>${parsed.text}</pre>`, offset: tag.offset, length: tag.size };
+            parsedTags[tagTitle] = { text: `<pre>${parsed.text}</pre>` };
           } else {
-            parsedTags[tag.tagSignature] ={ parsed, offset: tag.offset, length: tag.size};
+            parsedTags[tagTitle] = parsed;
           }
         } catch (err) {
-          parsedTags[tag.tagSignature] = { error: String(err), rawHex: formatHexDump(new Uint8Array(buffer, tag.offset, tag.size)) };
+          parsedTags[tagTitle] = { error: String(err), rawHex: formatHexDump(new Uint8Array(buffer, tag.offset, tag.size)) };
         }
       } else {
-        parsedTags[tag.tagSignature] = { rawHex: formatHexDump(new Uint8Array(buffer, tag.offset, tag.size)) };
+        parsedTags[tagTitle] = { rawHex: formatHexDump(new Uint8Array(buffer, tag.offset, tag.size)) };
       }
     }
 
@@ -114,6 +153,11 @@ function pickSchema(tagSig, view, offset) {
   if (schemaMap[tagSig]) return resolveSchema(tagSig);
   const typeSig = readAscii(view, offset, 4);
   if (schemaMap[typeSig]) return resolveSchema(typeSig);
+  // mft1/mft2 special handling: ICC spec uses 'mft1' for lut8Type, 'mft2' for lut16Type
+  if (typeSig === 'mft1') return resolveSchema('mft1');
+  if (typeSig === 'mft2') return resolveSchema('mft2');
+  // chad tag: matrix3x3Type
+  if (tagSig === 'chad' || typeSig === 'chad') return resolveSchema('matrix3x3Type');
   if (["text", "desc", "mluc", "XYZ ", "curv", "ZXML"].includes(typeSig)) {
     return resolveSchema(typeSig);
   }
