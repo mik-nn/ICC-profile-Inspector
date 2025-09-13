@@ -13,46 +13,81 @@
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 </head>
-<body>
-<div class="container">
-  <h1 id="title">ICC Inspector</h1>
-  <label>Выберите JSON‑схему:</label><br>
-  <input type="file" id="schemaInput" accept=".json"><br>
-  <label>Выберите ICC‑профиль:</label><br>
-  <input type="file" id="iccInput" accept=".icc,.icm,application/vnd.iccprofile" disabled><br>
-  <div id="output">Сначала выберите схему...</div>
-</div>
+      if (schema) {
+        try {
+          const ctx = { tagSize: tag.size };
+          let parsed = parseBySchema(view, schema, tag.offset, ctx);
 
-<script>
-let schemaMap = {};
-let schemaResolved = {};
+          // Special handling for ZXML and CxF
+          if (schema.name === "zxmlType" || tag.tagSignature === "CxF ") {
+            let bytes = parsed.compressedData || parsed.bytes;
+            if (bytes) {
+              try {
+                const inflated = pako.inflate(bytes, { to: 'string' });
+                let xmlTree = null;
+                try {
+                  const parser = new DOMParser();
+                  const xmlDoc = parser.parseFromString(inflated, "application/xml");
+                  xmlTree = renderXMLTree(xmlDoc.documentElement);
+                } catch (e) {
+                  xmlTree = `<pre>${inflated}</pre>`;
+                }
+                parsed.decompressedXML = xmlTree;
+              } catch (e) {
+                parsed.decompressedXML = "Ошибка распаковки: " + e;
+              }
+            }
+          }
 
-document.getElementById('schemaInput').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      schemaMap = JSON.parse(reader.result);
-      schemaResolved = {};
-      document.getElementById('iccInput').disabled = false;
-      document.getElementById('output').textContent = 'Схема загружена. Теперь выберите ICC‑файл.';
-    } catch (err) {
-      document.getElementById('output').textContent = 'Ошибка чтения схемы: ' + err;
+          // Special handling for chad tag: format as matrix
+          if (tag.tagSignature === 'chad' && schema.name === 'matrix3x3Type') {
+            parsed.matrix = renderMatrix3x3(parsed);
+          }
+
+          // Special handling for mAB/mBA tags: decode structure
+          if (["mAB ", "mBA ", "A2B0", "A2B1", "A2B2", "B2A0", "B2A1", "B2A2"].includes(tag.tagSignature)) {
+            parsed.decoded = decodeMab(parsed);
+          }
+
+          // Special handling for textType
+          if (schema.name === "textType") {
+            parsedTags[tagTitle] = { text: `<pre>${parsed.text}</pre>` };
+          } else {
+            parsedTags[tagTitle] = parsed;
+          }
+        } catch (err) {
+          parsedTags[tagTitle] = { error: String(err), rawHex: formatHexDump(new Uint8Array(buffer, tag.offset, tag.size)) };
+        }
+      } else {
+        parsedTags[tagTitle] = { rawHex: formatHexDump(new Uint8Array(buffer, tag.offset, tag.size)) };
+      }
+// Render 3x3 matrix as HTML table
+function renderMatrix3x3(obj) {
+  if (!('m00' in obj)) return '';
+  let html = '<table style="border-collapse:collapse;margin:5px 0;">';
+  for (let r = 0; r < 3; r++) {
+    html += '<tr>';
+    for (let c = 0; c < 3; c++) {
+      html += `<td style="border:1px solid #ccc;padding:2px 6px;">${obj[`m${r}${c}`]}</td>`;
     }
-  };
-  reader.readAsText(file);
-});
+    html += '</tr>';
+  }
+  html += '</table>';
+  return html;
+}
 
-document.getElementById('iccInput').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  document.getElementById('title').textContent = file.name;
-  const reader = new FileReader();
-  reader.onload = () => {
-    const buffer = reader.result;
-    const view = new DataView(buffer);
-
+// Decode mAB/mBA tags for easier viewing
+function decodeMab(obj) {
+  const out = {};
+  if ('inputChannels' in obj) out['Input Channels'] = obj.inputChannels;
+  if ('outputChannels' in obj) out['Output Channels'] = obj.outputChannels;
+  if (obj.Bcurves) out['B Curves'] = obj.Bcurves;
+  if (obj.Matrix) out['Matrix'] = obj.Matrix;
+  if (obj.Mcurves) out['M Curves'] = obj.Mcurves;
+  if (obj.CLUT) out['CLUT'] = obj.CLUT;
+  if (obj.Acurves) out['A Curves'] = obj.Acurves;
+  return out;
+}
     let header = {};
     if (schemaMap['ICCHeader']) {
       header = parseBySchema(view, resolveSchema('ICCHeader'), 0);
