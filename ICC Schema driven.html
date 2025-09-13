@@ -90,9 +90,9 @@ document.getElementById('iccInput').addEventListener('change', e => {
 
           // Обработка textType
           if (schema.name === "textType") {
-            parsedTags[tag.tagSignature] = { text: `<pre>${parsed.text}</pre>` };
+            parsedTags[tag.tagSignature] = { text: `<pre>${parsed.text}</pre>`, offset: tag.offset, length: tag.size };
           } else {
-            parsedTags[tag.tagSignature] = parsed;
+            parsedTags[tag.tagSignature] ={ parsed, offset: tag.offset, length: tag.size};
           }
         } catch (err) {
           parsedTags[tag.tagSignature] = { error: String(err), rawHex: formatHexDump(new Uint8Array(buffer, tag.offset, tag.size)) };
@@ -102,7 +102,7 @@ document.getElementById('iccInput').addEventListener('change', e => {
       }
     }
 
-    const result = { Header: header, TagTable: tags, Tags: parsedTags };
+    const result = { Header: header, Tags: parsedTags };
     const out = document.getElementById('output');
     out.innerHTML = '';
     out.appendChild(renderTree(result, file.name, true));
